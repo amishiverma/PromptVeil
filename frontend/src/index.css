@@ -5,6 +5,7 @@
   --bg-sidebar: #1b1e2b;
   --bg-panel: #202432;
   --bg-input: #151822;
+  --bg-lighter: #252a3a;
   --border-color: #2a2e41;
   --border-light: #353a50;
   
@@ -23,8 +24,40 @@
   --green-bg: rgba(16, 185, 129, 0.1);
 }
 
+/* ── Light Mode ── */
+[data-theme="light"] {
+  --bg-main: #f0f2f8;
+  --bg-sidebar: #ffffff;
+  --bg-panel: #ffffff;
+  --bg-input: #f5f7fa;
+  --bg-lighter: #e8ecf4;
+  --border-color: #dde1ef;
+  --border-light: #c8cedf;
+
+  --text-main: #1e2235;
+  --text-dim: #6b7280;
+
+  --blue: #0284c7;
+  --blue-hover: #0369a1;
+  --blue-bg: rgba(2, 132, 199, 0.08);
+
+  --red: #dc2626;
+  --red-bg: rgba(220, 38, 38, 0.08);
+  --yellow: #d97706;
+  --yellow-bg: rgba(217, 119, 6, 0.08);
+  --green: #059669;
+  --green-bg: rgba(5, 150, 105, 0.08);
+}
+
+/* Smooth theme transition on everything */
+*, *::before, *::after {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease, box-shadow 0.3s ease;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Inter', sans-serif; background-color: var(--bg-main); color: var(--text-main); height: 100vh; overflow: hidden; }
+
+
 
 /* LAYOUT */
 .app-container { display: flex; height: 100vh; }
@@ -70,7 +103,158 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg-main); color
 .col-span-3 { grid-column: span 3; }
 .row-span-2 { grid-row: span 2; }
 
-.panel { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; }
+.panel {
+  position: relative;
+  background: var(--bg-panel);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: none;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.3s;
+}
+
+/* Glowing gradient border — same motion as SecureChat input */
+.panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  padding: 2px;
+  /* Use same gradient + background-size trick as .sc-input-glow-wrap */
+  background: linear-gradient(135deg,
+    var(--panel-glow-a, #f97316) 0%,
+    var(--panel-glow-b, #9333ea) 40%,
+    var(--panel-glow-c, #3b82f6) 70%,
+    var(--panel-glow-a, #f97316) 100%
+  );
+  background-size: 300% 300%;
+  animation: glow-shift 4s ease infinite;  /* reuse same keyframe as SecureChat */
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Outer bloom glow — same intensity as SecureChat */
+.panel::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 14px;
+  background: transparent;
+  box-shadow:
+    0 0 24px rgba(var(--panel-shadow-rgb, 147, 51, 234), 0.28),
+    0 0 50px rgba(var(--panel-shadow-rgb, 147, 51, 234), 0.10);
+  pointer-events: none;
+  z-index: 0;
+  transition: box-shadow 0.4s;
+}
+
+.panel:hover::after {
+  box-shadow:
+    0 0 40px rgba(var(--panel-shadow-rgb, 147, 51, 234), 0.5),
+    0 0 80px rgba(var(--panel-shadow-rgb, 147, 51, 234), 0.18);
+}
+.panel:hover::before {
+  animation-duration: 2s; /* speeds up on hover like SecureChat focused state */
+}
+
+.panel:hover { transform: translateY(-1px); }
+
+/* Panel content sits above the pseudo-elements */
+.panel > * { position: relative; z-index: 1; }
+
+/* Rotating gradient animation */
+@keyframes panel-border-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ── Per-panel color rotation (mimicking img1 varied card glows) ── */
+.dashboard-grid > .panel:nth-child(1),
+.dashboard-grid > div:nth-child(1) .panel {
+  --panel-glow-a: #7c3aed;
+  --panel-glow-b: #a855f7;
+  --panel-glow-c: #6d28d9;
+  --panel-shadow-rgb: 124, 58, 237;
+}
+.dashboard-grid > .panel:nth-child(2),
+.threats-panel {
+  --panel-glow-a: #0ea5e9;
+  --panel-glow-b: #38bdf8;
+  --panel-glow-c: #0284c7;
+  --panel-shadow-rgb: 14, 165, 233;
+}
+.dashboard-grid > .panel:nth-child(3) {
+  --panel-glow-a: #f59e0b;
+  --panel-glow-b: #f97316;
+  --panel-glow-c: #d97706;
+  --panel-shadow-rgb: 249, 115, 22;
+}
+.dashboard-grid > .panel:nth-child(4) {
+  --panel-glow-a: #10b981;
+  --panel-glow-b: #34d399;
+  --panel-glow-c: #059669;
+  --panel-shadow-rgb: 16, 185, 129;
+}
+.dashboard-grid > .panel:nth-child(5),
+.dashboard-grid > .panel:nth-child(6) {
+  --panel-glow-a: #8b5cf6;
+  --panel-glow-b: #3b82f6;
+  --panel-glow-c: #06b6d4;
+  --panel-shadow-rgb: 139, 92, 246;
+}
+
+/* Threat cards */
+.threat-card {
+  position: relative;
+  background: var(--bg-main);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  transition: border-color 0.3s;
+  border: none;
+  overflow: hidden;
+}
+.threat-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.threat-card.highlight-red::before  { background: linear-gradient(135deg, #ef444480, #b91c1c40); }
+.threat-card.highlight-yellow::before { background: linear-gradient(135deg, #f59e0b80, #d9770640); }
+.threat-card.highlight-green::before { background: linear-gradient(135deg, #10b98180, #05966940); }
+
+.threat-card.flashing {
+  animation: pulse-border 2s infinite;
+}
+.threat-card.flashing::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.3);
+  pointer-events: none;
+}
+@keyframes pulse-border {
+  0%   { box-shadow: 0 0 0 0 rgba(239,68,68,0.25); }
+  70%  { box-shadow: 0 0 0 8px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.threat-card > * { position: relative; z-index: 1; }
+
+
 .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
 .panel-header h3 { font-size: 1.05rem; font-weight: 500; }
 

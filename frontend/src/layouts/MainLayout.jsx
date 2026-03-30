@@ -1,9 +1,15 @@
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 export default function MainLayout({ children }) {
   const location = useLocation();
+  const [isDark, setIsDark] = useState(true);
 
   const isActive = (path) => location.pathname === path ? 'active' : '';
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  }, [isDark]);
 
   return (
     <div className="app-container">
@@ -46,7 +52,6 @@ export default function MainLayout({ children }) {
           </Link>
         </nav>
 
-        
         <div className="user-profile">
           <div className="user-avatar">
             <img src="https://i.pravatar.cc/150?u=a04258114e29026702d" alt="User" />
@@ -71,9 +76,12 @@ export default function MainLayout({ children }) {
             <span>Status: <b className="text-green">Active</b></span>
             <span>Latency: 12ms</span>
             <span>Mode: <b>Secure</b></span>
-            <div className="toggle-switch">
-              <span className="toggle-label">Live</span>
-              <div className="toggle-track active"><div className="toggle-thumb"></div></div>
+            {/* Dark/Light mode toggle */}
+            <div className="toggle-switch" onClick={() => setIsDark(prev => !prev)} style={{ cursor: 'pointer' }}>
+              <span className="toggle-label">{isDark ? '🌙 Dark' : '☀️ Light'}</span>
+              <div className={`toggle-track ${isDark ? 'active' : ''}`}>
+                <div className="toggle-thumb"></div>
+              </div>
             </div>
           </div>
         </header>
