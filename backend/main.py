@@ -6,8 +6,15 @@ import re
 import json
 import os
 from dotenv import load_dotenv
+import google.generativeai as genai
 
-load_dotenv()
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(env_path)
+
+# Configure Gemini
+gemini_key = os.getenv("GEMINI_API_KEY")
+if gemini_key:
+    genai.configure(api_key=gemini_key)
 
 app = FastAPI(title="PromptVeil API", description="Backend for Prompt Injection Defense")
 
@@ -326,3 +333,36 @@ def read_root():
 @app.post("/api/analyze")
 def analyze_prompt(request: PromptRequest):
     return combine_analysis(request.prompt)
+
+@app.post("/api/secure-chat")
+def secure_chat(request: PromptRequest):
+    analysis = combine_analysis(request.prompt)
+    risk_score = analysis["risk_score"]
+    
+    if risk_score > 30:
+        return {
+            "status": "blocked",
+            "is_safe": False,
+            "risk_score": risk_score,
+            "threats_found": analysis["threats_found"],
+            "threat_details": analysis["threat_details"],
+            "message": "Warning: The prompt cannot be executed due to safety issues.",
+            "reply": None
+        }
+    
+    try:
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        response = model.generate_content(request.prompt)
+        ai_reply = response.text
+    except Exception as e:
+        ai_reply = f"[Gemini API Error]: {str(e)}"
+
+    return {
+        "status": "success",
+        "is_safe": True,
+        "risk_score": risk_score,
+        "threats_found": analysis["threats_found"],
+        "threat_details": analysis["threat_details"],
+        "message": "Safe to execute",
+        "reply": ai_reply
+    }

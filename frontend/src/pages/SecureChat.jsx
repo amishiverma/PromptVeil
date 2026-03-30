@@ -42,7 +42,12 @@ function Message({ msg }) {
     <div className={`sc-msg ${isUser ? 'sc-msg--user' : 'sc-msg--ai'}`}>
       {!isUser && <div className="sc-avatar sc-avatar--ai">AI</div>}
       <div className={`sc-bubble ${isUser ? 'sc-bubble--user' : 'sc-bubble--ai'}`}>
-        {msg.content}
+        <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
+        {!isUser && msg.score !== undefined && (
+            <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', color: '#10b981', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.5rem' }}>
+                 🛡️ Safety Rating: {msg.score}/100 (Safe)
+            </div>
+        )}
         <div className="sc-timestamp">{msg.time}</div>
       </div>
       {isUser && <div className="sc-avatar sc-avatar--user">U</div>}
@@ -80,47 +85,38 @@ export default function SecureChat() {
     setScanStatus({ text: 'Scanning...', color: '#f59e0b' });
 
     try {
-      // ── Layer 1: PromptVeil Security Check ──────────────────────────────
-      const pvRes = await fetch('http://localhost:8000/api/analyze', {
+      // ── Integrated Backend Security Check & Gemini Generation ────────
+      const res = await fetch('http://localhost:8000/api/secure-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: text }),
       });
-      const pvData = await pvRes.json();
+      const data = await res.json();
 
-      if (!pvData.is_safe) {
+      setIsTyping(false);
+
+      if (data.status === 'blocked') {
         setScanStatus({ text: 'Threat Blocked', color: '#ef4444' });
-        setIsTyping(false);
         setMessages(prev => [...prev, {
           role: 'blocked',
-          level: pvData.threat_level,
-          description: pvData.description,
-          score: pvData.risk_score,
-          threats: pvData.threats_found,
+          level: data.risk_score > 85 ? 'critical' : data.risk_score > 60 ? 'high' : 'medium',
+          description: data.message,
+          score: data.risk_score,
+          threats: data.threats_found || [],
           time: now(),
         }]);
         setTimeout(() => setScanStatus({ text: 'Shields Active', color: '#22c55e' }), 3000);
         return;
       }
 
-      setScanStatus({ text: 'Safe — Forwarding to AI', color: '#3b82f6' });
-
-      // ── Layer 2: Gemini API Call (add your key below) ───────────────────
-      // TODO: Replace with your actual Gemini API call
-      // const geminiRes = await fetch(
-      //   `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=YOUR_KEY`,
-      //   { method: 'POST', headers: {'Content-Type':'application/json'},
-      //     body: JSON.stringify({ contents: [{ parts: [{ text }] }] }) }
-      // );
-      // const geminiData = await geminiRes.json();
-      // const aiReply = geminiData.candidates[0].content.parts[0].text;
-
-      // Placeholder until Gemini key is added:
-      const aiReply = `[Gemini API not yet connected] Your message "${text}" passed all PromptVeil security checks (Risk Score: ${pvData.risk_score}/100). Add your Gemini API key in SecureChat.jsx to get real AI responses!`;
-
-      setIsTyping(false);
-      setScanStatus({ text: 'Shields Active', color: '#22c55e' });
-      setMessages(prev => [...prev, { role: 'ai', content: aiReply, time: now() }]);
+      setScanStatus({ text: 'Safe — Executed with Gemini', color: '#3b82f6' });
+      setMessages(prev => [...prev, { 
+          role: 'ai', 
+          content: data.reply,
+          score: data.risk_score, 
+          time: now() 
+      }]);
+      setTimeout(() => setScanStatus({ text: 'Shields Active', color: '#22c55e' }), 3000);
 
     } catch (err) {
       setIsTyping(false);
