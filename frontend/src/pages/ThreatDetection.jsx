@@ -5,11 +5,10 @@ export default function ThreatDetection() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState(null);
   
-  // Convert static logs to state so we can dynamically add new scans
   const [logs, setLogs] = useState([
-    { time: '12:34 PM', type: 'SQL Injection', action: 'Blocked', confidence: 92, dot: 'red' },
-    { time: '12:30 PM', type: 'System Override', action: 'Intercepting', confidence: 76, dot: 'yellow' },
-    { time: '12:16 PM', type: 'Jailbreak Attempt', action: 'Monitoring', confidence: 94, dot: 'green' }
+    { time: '12:34 PM', type: 'SQL Injection', status: 'Blocked', score: 92, dot: 'red' },
+    { time: '12:30 PM', type: 'System Override', status: 'Intercepting', score: 76, dot: 'yellow' },
+    { time: '12:16 PM', type: 'Jailbreak Attempt', status: 'Monitoring', score: 94, dot: 'green' }
   ]);
   
   const handleAnalyze = async () => {
@@ -25,48 +24,54 @@ export default function ThreatDetection() {
       });
       
       const data = await response.json();
-      setTimeout(() => {
-        setResult(data);
-        setIsAnalyzing(false);
-        
-        // Dynamically add the new scan result to our Logs table
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        
-        const newLog = {
-           time: timeStr,
-           type: data.is_safe ? 'Safe Payload' : data.description.split(' ')[1] + ' Injection', // mock type
-           action: data.is_safe ? 'Allowed' : 'Blocked',
-           confidence: data.is_safe ? 99 : 92,
-           dot: data.is_safe ? 'green' : 'red'
-        };
-        
-        setLogs(prev => [newLog, ...prev]);
-        
-      }, 800);
+      
+      setResult(data);
+      setIsAnalyzing(false);
+      
+      // Formulate a proper display label for the top threat
+      let primaryThreat = data.is_safe ? 'Clean Payload' : 'Multi-Vector Attack';
+      if (data.threats_found?.length === 1) {
+           const key = data.threats_found[0];
+           primaryThreat = data.threat_details?.[key]?.label || key;
+      } else if (data.threats_found?.includes('ai_safety')) {
+           primaryThreat = 'AI Safety Violation';
+      }
+
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      const newLog = {
+         time: timeStr,
+         type: primaryThreat,
+         status: data.is_safe ? 'Allowed' : data.threat_level === 'critical' || data.threat_level === 'high' ? 'Blocked' : 'Flagged',
+         score: data.risk_score,
+         dot: data.is_safe ? 'green' : data.risk_score > 60 ? 'red' : 'yellow',
+         isNew: true
+      };
+      
+      setLogs(prev => [newLog, ...prev.map(l => ({...l, isNew: false}))]);
+      
     } catch (error) {
       console.error('Error:', error);
       setIsAnalyzing(false);
     }
   };
 
-  // Calculate dynamic display values
-  const currentScore = result 
-      ? (result.is_safe ? '12' : '92') 
-      : '74'; // Default baseline score
-  const scoreLabel = result 
-      ? (result.is_safe ? 'Low' : 'Critical') 
-      : 'High';
-  const scoreColorClass = result 
-      ? (result.is_safe ? 'text-green' : 'text-red') 
-      : 'text-yellow';
-  const gaugeOffset = result 
-      ? (result.is_safe ? "200" : "25") 
-      : "65";
+  // Safe checks against missing data from backend updates
+  const riskScore = result ? result.risk_score : 0;
+  const isSafe = result ? result.is_safe : true;
+  
+  // Calculate dynamic gauge visual properties (251.2 is max circumference for r=40)
+  const gaugeCircumference = 251.2;
+  const gaugeProgress = (riskScore / 100) * gaugeCircumference;
+  const gaugeOffset = result ? (gaugeCircumference - gaugeProgress) : gaugeCircumference; // 0 risk default
+
+  // Check active protocols vs threats array 
+  const activeThreats = result?.threats_found || [];
 
   return (
-    <>
-      <h1 className="page-title">Threat Detection</h1>
+    <div className="page-container">
+      <h1 className="page-title">Threat Detection Center</h1>
           
       <div className="dashboard-grid">
         
@@ -75,7 +80,7 @@ export default function ThreatDetection() {
             <div className="payload-section">
               <div className="panel-header">
                   <h3>Payload Input</h3>
-                  {isAnalyzing && <span className="text-blue" style={{fontSize:'0.8rem'}}>Scanning backend...</span>}
+                  {isAnalyzing && <span className="text-blue" style={{fontSize:'0.85rem'}}>NVIDIA Nemotron AI Scanning...</span>}
               </div>
               <textarea 
                 className="payload-textarea"
@@ -84,7 +89,7 @@ export default function ThreatDetection() {
               />
               <div className="button-group">
                 <button className="btn btn-primary" onClick={handleAnalyze} disabled={isAnalyzing}>
-                  {isAnalyzing ? 'Analyzing...' : 'Analyze Threat'}
+                  {isAnalyzing ? 'Analyzing...' : 'Analyze Vector'}
                 </button>
                 <button className="btn btn-secondary" onClick={() => setPrompt('')}>Clear</button>
               </div>
@@ -97,10 +102,10 @@ export default function ThreatDetection() {
               <div className="gauge-container">
                 <svg viewBox="0 0 200 120" className="gauge-svg">
                     <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="var(--border-color)" strokeWidth="12" strokeLinecap="round" />
-                    <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gaugeGradient)" strokeWidth="12" strokeLinecap="round" strokeDasharray="251.2" strokeDashoffset={gaugeOffset} style={{ transition: 'stroke-dashoffset 1s ease' }}/>
+                    <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gaugeGradient)" strokeWidth="12" strokeLinecap="round" strokeDasharray={gaugeCircumference} strokeDashoffset={gaugeOffset} style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1)' }}/>
                     <defs>
                       <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="var(--blue)" />
+                          <stop offset="0%" stopColor="var(--green)" />
                           <stop offset="60%" stopColor="var(--yellow)" />
                           <stop offset="100%" stopColor="var(--red)" />
                       </linearGradient>
@@ -112,71 +117,70 @@ export default function ThreatDetection() {
                   <span className="val-mid2">Crit</span>
                 </div>
                 <div className="gauge-center">
-                    <span className="g-label">Threat Score</span>
-                    <div className="g-value">{currentScore} <span className={scoreColorClass} style={{fontSize:'0.8rem'}}>{scoreLabel}</span></div>
+                    <span className="g-label">Risk Score</span>
+                    <div className="g-value">
+                       {riskScore} 
+                       <span className={isSafe ? 'text-green' : 'text-red'} style={{fontSize:'0.8rem'}}>
+                          {result?.threat_level?.toUpperCase() || 'N/A'}
+                       </span>
+                    </div>
                 </div>
               </div>
+              
+              {result?.ai_analysis?.available && (
+                  <div style={{marginTop: '1.5rem', fontSize: '0.8rem', color: 'var(--text-dim)', textAlign: 'center'}}>
+                     <span className="text-blue">◈ AI Verdict:</span> {result.ai_analysis.verdict}
+                  </div>
+              )}
             </div>
         </div>
 
-        {/* Right Column: Active Threats */}
+        {/* Right Column: Protocols Shield Status */}
         <div className="panel threats-panel row-span-2">
             <h3>Active Threats</h3>
             
-            <div className={`threat-card highlight-red ${result && !result.is_safe ? 'pulsing' : ''}`}>
+            <div className={`threat-card highlight-red ${activeThreats.includes('sql_injection') ? 'flashing' : ''}`}>
               <div className="tc-header">
                 <div className="icon-box red-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                 </div>
                 <div className="tc-title">
                     <h4>SQL Injection</h4>
-                    <span className="tc-status">{result && !result.is_safe ? 'Intercepted!' : 'Blocked'}</span>
-                </div>
-                <div className="tc-mini-graph">
-                  <svg viewBox="0 0 60 20"><path d="M0 15 Q10 15, 20 10 T40 5 L60 5" fill="none" stroke="var(--red)" strokeWidth="2"/><rect x="45" y="3" width="15" height="4" fill="var(--red)"/></svg>
+                    <span className="tc-status">{activeThreats.includes('sql_injection') ? result.threat_details['sql_injection'].status : 'Armored'}</span>
                 </div>
               </div>
               <div className="tc-footer">
-                <span>Confidence: <b>{result && !result.is_safe ? '99%' : '92%'}</b></span>
-                <span className="text-dim">{result && !result.is_safe ? 'Just now' : 'Last detected: 2 min ago'}</span>
+                <span>Confidence: <b>{activeThreats.includes('sql_injection') ? result.threat_details['sql_injection'].severity + '%' : '--'}</b></span>
               </div>
             </div>
 
-            <div className="threat-card highlight-yellow">
+            <div className={`threat-card highlight-yellow ${activeThreats.includes('system_override') ? 'flashing' : ''}`}>
               <div className="tc-header">
                 <div className="icon-box yellow-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                 </div>
                 <div className="tc-title">
                     <h4>System Override</h4>
-                    <span className="tc-status">Intercepting</span>
-                </div>
-                <div className="tc-mini-graph">
-                  <svg viewBox="0 0 60 20"><path d="M0 15 Q15 15, 25 10 T45 10 L60 10" fill="none" stroke="var(--yellow)" strokeWidth="2"/><rect x="45" y="8" width="15" height="4" fill="var(--yellow)"/></svg>
+                    <span className="tc-status">{activeThreats.includes('system_override') ? result.threat_details['system_override'].status : 'Armored'}</span>
                 </div>
               </div>
               <div className="tc-footer">
-                <span>Confidence: <b>76%</b></span>
-                <span className="text-dim">Last detected: 5 min ago</span>
+                <span>Confidence: <b>{activeThreats.includes('system_override') ? result.threat_details['system_override'].severity + '%' : '--'}</b></span>
               </div>
             </div>
 
-            <div className="threat-card highlight-green">
+            <div className={`threat-card highlight-green ${activeThreats.includes('jailbreak') || activeThreats.includes('ai_safety') ? 'flashing' : ''}`}>
               <div className="tc-header">
                 <div className="icon-box green-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
                 </div>
                 <div className="tc-title">
-                    <h4>Jailbreak Heuristics</h4>
-                    <span className="tc-status">Active</span>
-                </div>
-                <div className="tc-mini-graph">
-                  <svg viewBox="0 0 60 20"><path d="M0 15 Q10 10, 20 15 T40 10 L60 10" fill="none" stroke="var(--green)" strokeWidth="2"/><rect x="45" y="8" width="15" height="4" fill="var(--green)"/></svg>
+                    <h4>Jailbreak & Semantic</h4>
+                    <span className="tc-status">{activeThreats.includes('jailbreak') || activeThreats.includes('ai_safety') ? 'Breach Detected' : 'Monitoring'}</span>
                 </div>
               </div>
               <div className="tc-footer">
-                <span>Confidence: <b>34%</b></span>
-                <span className="text-dim">Last detected: 13 min ago</span>
+                <span>Confidence: <b>{activeThreats.includes('jailbreak') ? result.threat_details['jailbreak'].severity + '%' : activeThreats.includes('ai_safety') ? result.threat_details['ai_safety'].severity + '%' : '--'}</b></span>
               </div>
             </div>
         </div>
@@ -184,12 +188,9 @@ export default function ThreatDetection() {
         {/* Middle Row: Threat Activity Chart */}
         <div className="panel col-span-2">
             <div className="panel-header">
-              <h3>Threat Activity</h3>
+              <h3>Scan Activity Trend</h3>
               <div className="header-actions">
                   <span className="text-dim text-sm mr-2">Last 24h</span>
-                  <div className="dots-toggle">
-                    <span></span><span></span><span></span>
-                  </div>
               </div>
             </div>
             <div className="chart-container">
@@ -226,10 +227,10 @@ export default function ThreatDetection() {
         {/* Bottom Row: Threat Logs */}
         <div className="panel col-span-3">
             <div className="panel-header mb-4">
-              <h3>Threat Logs</h3>
+              <h3>Analysis Forensics Log</h3>
               <div className="search-box">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                <input type="text" placeholder="Search logs..." />
+                <input type="text" placeholder="Search intercepts..." />
               </div>
             </div>
             
@@ -237,18 +238,18 @@ export default function ThreatDetection() {
               <thead>
                   <tr>
                     <th>Time</th>
-                    <th>Threat Type</th>
-                    <th>Action</th>
-                    <th className="text-right">Confidence <svg className="inline ml-1" width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14m0 0l-4-4m4 4l4-4"/></svg></th>
+                    <th>Threat Classification</th>
+                    <th>System Action</th>
+                    <th className="text-right">Risk Score <svg className="inline ml-1" width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14m0 0l-4-4m4 4l4-4"/></svg></th>
                   </tr>
               </thead>
               <tbody>
                   {logs.map((log, index) => (
-                    <tr key={index} style={{ animation: index === 0 && result ? 'flash 1s' : 'none' }}>
+                    <tr key={index} className={log.isNew ? 'new-log' : ''}>
                       <td>{log.time} <span className={`dot dot-${log.dot}`}></span></td>
                       <td>{log.type}</td>
-                      <td>{log.action}</td>
-                      <td className="text-right">{log.confidence}%</td>
+                      <td>{log.status}</td>
+                      <td className="text-right">{log.score || 0}</td>
                     </tr>
                   ))}
               </tbody>
@@ -256,6 +257,6 @@ export default function ThreatDetection() {
         </div>
 
       </div>
-    </>
+    </div>
   );
 }
