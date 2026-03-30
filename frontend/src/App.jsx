@@ -5,6 +5,7 @@ import ThreatDetection from './pages/ThreatDetection';
 import PayloadAnalytics from './pages/PayloadAnalytics';
 import DefensePolicies from './pages/DefensePolicies';
 import RedTeaming from './pages/RedTeaming';
+import SecureChat from './pages/SecureChat';
 import './index.css';
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="/analytics" element={<PayloadAnalytics />} />
           <Route path="/policies" element={<DefensePolicies />} />
           <Route path="/redteam" element={<RedTeaming />} />
+          <Route path="/chat" element={<SecureChat />} />
         </Routes>
       </MainLayout>
     </Router>

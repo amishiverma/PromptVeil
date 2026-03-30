@@ -19,7 +19,7 @@ export default function Dashboard() {
            <span className="text-dim">Avg Latency</span>
            <h2 style={{ fontSize: '2.5rem', marginTop: '0.5rem', color: 'var(--blue)' }}>97ms</h2>
         </div>
-        
+
         <div className="panel col-span-3" style={{ height: '300px' }}>
           <div className="panel-header"><h3>Malicious Attacks vs Benign Requests</h3></div>
           <p className="text-dim">Chart coming soon...</p>
