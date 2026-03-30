@@ -5,6 +5,13 @@ export default function ThreatDetection() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState(null);
   
+  // Convert static logs to state so we can dynamically add new scans
+  const [logs, setLogs] = useState([
+    { time: '12:34 PM', type: 'SQL Injection', action: 'Blocked', confidence: 92, dot: 'red' },
+    { time: '12:30 PM', type: 'System Override', action: 'Intercepting', confidence: 76, dot: 'yellow' },
+    { time: '12:16 PM', type: 'Jailbreak Attempt', action: 'Monitoring', confidence: 94, dot: 'green' }
+  ]);
+  
   const handleAnalyze = async () => {
     if (!prompt.trim()) return;
     setIsAnalyzing(true);
@@ -21,12 +28,41 @@ export default function ThreatDetection() {
       setTimeout(() => {
         setResult(data);
         setIsAnalyzing(false);
-      }, 1000);
+        
+        // Dynamically add the new scan result to our Logs table
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        const newLog = {
+           time: timeStr,
+           type: data.is_safe ? 'Safe Payload' : data.description.split(' ')[1] + ' Injection', // mock type
+           action: data.is_safe ? 'Allowed' : 'Blocked',
+           confidence: data.is_safe ? 99 : 92,
+           dot: data.is_safe ? 'green' : 'red'
+        };
+        
+        setLogs(prev => [newLog, ...prev]);
+        
+      }, 800);
     } catch (error) {
       console.error('Error:', error);
       setIsAnalyzing(false);
     }
   };
+
+  // Calculate dynamic display values
+  const currentScore = result 
+      ? (result.is_safe ? '12' : '92') 
+      : '74'; // Default baseline score
+  const scoreLabel = result 
+      ? (result.is_safe ? 'Low' : 'Critical') 
+      : 'High';
+  const scoreColorClass = result 
+      ? (result.is_safe ? 'text-green' : 'text-red') 
+      : 'text-yellow';
+  const gaugeOffset = result 
+      ? (result.is_safe ? "200" : "25") 
+      : "65";
 
   return (
     <>
@@ -39,7 +75,7 @@ export default function ThreatDetection() {
             <div className="payload-section">
               <div className="panel-header">
                   <h3>Payload Input</h3>
-                  <select className="dropdown"><option>Last 24h</option></select>
+                  {isAnalyzing && <span className="text-blue" style={{fontSize:'0.8rem'}}>Scanning backend...</span>}
               </div>
               <textarea 
                 className="payload-textarea"
@@ -48,7 +84,7 @@ export default function ThreatDetection() {
               />
               <div className="button-group">
                 <button className="btn btn-primary" onClick={handleAnalyze} disabled={isAnalyzing}>
-                  {isAnalyzing ? 'Analyzing...' : 'Analyze'}
+                  {isAnalyzing ? 'Analyzing...' : 'Analyze Threat'}
                 </button>
                 <button className="btn btn-secondary" onClick={() => setPrompt('')}>Clear</button>
               </div>
@@ -61,7 +97,7 @@ export default function ThreatDetection() {
               <div className="gauge-container">
                 <svg viewBox="0 0 200 120" className="gauge-svg">
                     <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="var(--border-color)" strokeWidth="12" strokeLinecap="round" />
-                    <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gaugeGradient)" strokeWidth="12" strokeLinecap="round" strokeDasharray="251.2" strokeDashoffset={result && !result.is_safe ? "25" : "65"} style={{ transition: 'stroke-dashoffset 1s ease' }}/>
+                    <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gaugeGradient)" strokeWidth="12" strokeLinecap="round" strokeDasharray="251.2" strokeDashoffset={gaugeOffset} style={{ transition: 'stroke-dashoffset 1s ease' }}/>
                     <defs>
                       <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                           <stop offset="0%" stopColor="var(--blue)" />
@@ -71,13 +107,13 @@ export default function ThreatDetection() {
                     </defs>
                 </svg>
                 <div className="gauge-values">
-                  <span className="val-min">50</span>
-                  <span className="val-mid1">75</span>
-                  <span className="val-mid2">100</span>
+                  <span className="val-min">Safe</span>
+                  <span className="val-mid1">Med</span>
+                  <span className="val-mid2">Crit</span>
                 </div>
                 <div className="gauge-center">
                     <span className="g-label">Threat Score</span>
-                    <div className="g-value">{result && !result.is_safe ? '92' : '74'} <span className="text-red">High</span></div>
+                    <div className="g-value">{currentScore} <span className={scoreColorClass} style={{fontSize:'0.8rem'}}>{scoreLabel}</span></div>
                 </div>
               </div>
             </div>
@@ -87,22 +123,22 @@ export default function ThreatDetection() {
         <div className="panel threats-panel row-span-2">
             <h3>Active Threats</h3>
             
-            <div className="threat-card highlight-red">
+            <div className={`threat-card highlight-red ${result && !result.is_safe ? 'pulsing' : ''}`}>
               <div className="tc-header">
                 <div className="icon-box red-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                 </div>
                 <div className="tc-title">
                     <h4>SQL Injection</h4>
-                    <span className="tc-status">Blocked</span>
+                    <span className="tc-status">{result && !result.is_safe ? 'Intercepted!' : 'Blocked'}</span>
                 </div>
                 <div className="tc-mini-graph">
                   <svg viewBox="0 0 60 20"><path d="M0 15 Q10 15, 20 10 T40 5 L60 5" fill="none" stroke="var(--red)" strokeWidth="2"/><rect x="45" y="3" width="15" height="4" fill="var(--red)"/></svg>
                 </div>
               </div>
               <div className="tc-footer">
-                <span>Confidence: <b>92%</b></span>
-                <span className="text-dim">Last detected: 2 min ago</span>
+                <span>Confidence: <b>{result && !result.is_safe ? '99%' : '92%'}</b></span>
+                <span className="text-dim">{result && !result.is_safe ? 'Just now' : 'Last detected: 2 min ago'}</span>
               </div>
             </div>
 
@@ -207,30 +243,14 @@ export default function ThreatDetection() {
                   </tr>
               </thead>
               <tbody>
-                  <tr>
-                    <td>12:34 PM <span className="dot dot-red"></span></td>
-                    <td>SQL Injection</td>
-                    <td>Blocked</td>
-                    <td className="text-right">92%</td>
-                  </tr>
-                  <tr>
-                    <td>12:30 PM <span className="dot dot-yellow"></span></td>
-                    <td>System Override</td>
-                    <td>Intercepting</td>
-                    <td className="text-right">76%</td>
-                  </tr>
-                  <tr>
-                    <td>12:16 PM <span className="dot dot-green"></span></td>
-                    <td>Jailbreak Attempt</td>
-                    <td>Monitoring</td>
-                    <td className="text-right">94%</td>
-                  </tr>
-                  <tr>
-                    <td>11:45 AM <span className="dot dot-red"></span></td>
-                    <td>SQL Injection</td>
-                    <td>Blocked</td>
-                    <td className="text-right">95%</td>
-                  </tr>
+                  {logs.map((log, index) => (
+                    <tr key={index} style={{ animation: index === 0 && result ? 'flash 1s' : 'none' }}>
+                      <td>{log.time} <span className={`dot dot-${log.dot}`}></span></td>
+                      <td>{log.type}</td>
+                      <td>{log.action}</td>
+                      <td className="text-right">{log.confidence}%</td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
         </div>
