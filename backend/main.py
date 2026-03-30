@@ -4,6 +4,10 @@ from pydantic import BaseModel
 from openai import OpenAI
 import re
 import json
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI(title="PromptVeil API", description="Backend for Prompt Injection Defense")
 
@@ -18,7 +22,7 @@ app.add_middleware(
 # NVIDIA NIM Safety Guard Client
 nvidia_client = OpenAI(
     base_url="https://integrate.api.nvidia.com/v1",
-    api_key="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"
+    api_key=os.getenv("NVIDIA_API_KEY")
 )
 
 SAFETY_MODEL = "nvidia/llama-3.1-nemotron-safety-guard-8b-v3"
