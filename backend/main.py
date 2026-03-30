@@ -126,17 +126,21 @@ def regex_analysis(prompt: str) -> dict:
                 matches.extend(found)
 
         if matches:
-            severity = min(config["severity_weight"] * len(matches), 100)
+            # Determine dynamic severity based on match density and heuristic weights
+            base_severity = config["severity_weight"]
+            frequency_multiplier = 1.0 + ((len(matches) - 1) * 0.4) # Each additional match adds 40% more severity
+            
+            severity = min(int(base_severity * frequency_multiplier), 90)
             total_risk += severity
             threats_found.append(threat_type)
             threat_details[threat_type] = {
                 "label": config["label"],
                 "matches": len(matches),
                 "severity": severity,
-                "status": "BLOCKED" if severity > 20 else "WARNING",
+                "status": "BLOCKED" if severity > 25 else "WARNING",
             }
 
-    total_risk = min(total_risk, 100)
+    total_risk = min(int(total_risk), 100)
     return {
         "threats_found": threats_found,
         "total_risk": total_risk,
@@ -231,24 +235,49 @@ def combine_analysis(prompt: str) -> dict:
 
     # If AI model flagged it as unsafe, boost the risk score
     if ai_result["success"] and ai_result["is_unsafe"]:
-        # Add AI-detected categories as a threat type
-        ai_severity = 30 if not threats_found else 20  # Higher if regex missed it
-        total_risk = min(total_risk + ai_severity, 100)
+        base_ai_severity = 45
+
+        # Penalize drastically based on the distinct number of offensive categories triggered
+        category_penalty = len(ai_result["categories"]) * 12
+        
+        # NLP Heuristic: Calculate obfuscation entropy (density of special characters often used to evade filters)
+        special_chars = len(re.sub(r'[a-zA-Z0-9\s]', '', prompt))
+        special_char_ratio = special_chars / max(len(prompt), 1)
+        obfuscation_penalty = int(special_char_ratio * 50)
+        
+        # NLP Heuristic: Jailbreaks tend to be verbose
+        length_penalty = min(len(prompt) // 25, 20)
+
+        # Dynamic AI Severity calculation
+        ai_severity = base_ai_severity + category_penalty + obfuscation_penalty + length_penalty
+        
+        # If Regex already caught it, slightly scale down the additive penalty to prevent instant 100-snapping
+        if threats_found:
+             ai_severity = int(ai_severity * 0.6)
+             
+        total_risk = min(int(total_risk + ai_severity), 100)
 
         if "ai_safety" not in threats_found:
             threats_found.append("ai_safety")
             threat_details["ai_safety"] = {
-                "label": "AI Safety Violation",
+                "label": "AI Safety Validation",
                 "matches": len(ai_result["categories"]) or 1,
-                "severity": ai_severity,
+                "severity": min(int(ai_severity), 100),
                 "status": "BLOCKED",
                 "categories": ai_result["categories"],
             }
+    else:
+        # Even if AI says it's "safe", apply micro-penalties for highly obfuscated mathematical strings
+        special_chars = len(re.sub(r'[a-zA-Z0-9\s]', '', prompt))
+        special_char_ratio = special_chars / max(len(prompt), 1)
+        if special_char_ratio > 0.15:
+            obfuscation_risk = int(special_char_ratio * 30)
+            total_risk = min(int(total_risk + obfuscation_risk), 100)
 
     is_safe = len(threats_found) == 0 and not (ai_result["success"] and ai_result["is_unsafe"])
-
-    # Determine threat level
-    if total_risk == 0:
+    
+    # Determine precise threat level breakpoints
+    if total_risk <= 5:
         threat_level = "none"
     elif total_risk < 25:
         threat_level = "low"
