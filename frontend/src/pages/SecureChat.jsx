@@ -98,11 +98,36 @@ export default function SecureChat() {
         .filter(m => m.role === 'user' || m.role === 'ai')
         .map(m => ({ role: m.role, content: m.content }));
 
+      // Use FormData for FastAPI endpoint expecting form fields
+      const formData = new FormData();
+      formData.append('prompt', text || '');
+      formData.append('history', JSON.stringify(history || []));
+      // File upload not implemented here, but can be added as: formData.append('file', file)
+
+
+      // Debug: log FormData content
+      for (let pair of formData.entries()) {
+        console.log(pair[0]+ ': ' + pair[1]);
+      }
+
       const res = await fetch('http://localhost:8000/api/secure-chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: text, history }),
+        body: formData,
       });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Backend error:', res.status, errorText);
+        setIsTyping(false);
+        setScanStatus({ text: 'Backend Error', color: '#ef4444' });
+        setMessages(prev => [...prev, {
+          role: 'ai',
+          content: `⚠️ Backend error (${res.status}): ${errorText}`,
+          time: now(),
+        }]);
+        return;
+      }
+
       const data = await res.json();
       setIsTyping(false);
 

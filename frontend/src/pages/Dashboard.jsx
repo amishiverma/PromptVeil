@@ -93,10 +93,14 @@ export default function Dashboard() {
         .filter(m => m.role === 'user' || m.role === 'ai')
         .map(m => ({ role: m.role, content: m.content }));
 
+
+      // Use FormData for FastAPI endpoint expecting form fields
+      const formData = new FormData();
+      formData.append('prompt', text || '');
+      formData.append('history', JSON.stringify(history || []));
       const res = await fetch('http://localhost:8000/api/secure-chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: text, history }),
+        body: formData,
       });
       const data = await res.json();
       setIsTyping(false);
