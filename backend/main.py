@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from openai import OpenAI
 import re
 import json
+from functools import lru_cache
+from typing import List, Optional
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai
@@ -35,8 +37,14 @@ nvidia_client = OpenAI(
 SAFETY_MODEL = "nvidia/llama-3.1-nemotron-safety-guard-8b-v3"
 
 
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
 class PromptRequest(BaseModel):
     prompt: str
+    history: Optional[List[ChatMessage]] = []
 
 
 # Regex-based threat detection patterns (fast, offline fallback)
@@ -125,9 +133,23 @@ THREAT_PATTERNS = {
 def regex_analysis(prompt: str) -> dict:
     """Fast regex-based threat detection (offline, always available)."""
     prompt_lower = prompt.lower()
+    prompt_dense = re.sub(r'[^a-z0-9]', '', prompt_lower) # Remove spaces/special chars for bypass check
+    
     threats_found = []
     total_risk = 0
     threat_details = {}
+    
+    # Advanced Obfuscation bypass check
+    compact_attacks = ["ignoreallpreviousinstructions", "ignorepriorinstructions", "disregardallprevious", "forgetallprevious"]
+    if any(attack in prompt_dense for attack in compact_attacks):
+        total_risk += 45
+        threats_found.append("jailbreak")
+        threat_details["jailbreak"] = {
+            "label": "Jailbreak Attempt (Dense Format)",
+            "matches": 1,
+            "severity": 45,
+            "status": "BLOCKED"
+        }
 
     for threat_type, config in THREAT_PATTERNS.items():
         matches = []
@@ -159,17 +181,14 @@ def regex_analysis(prompt: str) -> dict:
     }
 
 
-def ai_safety_analysis(prompt: str) -> dict:
-    """
-    Use NVIDIA Llama-3.1-Nemotron Safety Guard to classify the prompt.
-    Returns AI safety verdict and categories.
-    """
+@lru_cache(maxsize=200)
+def _cached_ai_safety_analysis(messages_tuple: tuple) -> dict:
+    """Internal cached API call to NVIDIA Nemotron."""
+    messages = [dict(m) for m in messages_tuple]
     try:
         completion = nvidia_client.chat.completions.create(
             model=SAFETY_MODEL,
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
+            messages=messages,
             stream=False,
         )
 
@@ -227,7 +246,27 @@ def ai_safety_analysis(prompt: str) -> dict:
         }
 
 
-def combine_analysis(prompt: str) -> dict:
+def ai_safety_analysis(prompt: str, history: list = None) -> dict:
+    """
+    Public wrapper that builds message history and calls the cached safety guard.
+    """
+    if history is None:
+        history = []
+        
+    formatted_messages = []
+    # Build conversation context
+    for msg in history:
+        role = "assistant" if msg["role"] in ["ai", "model", "assistant"] else "user"
+        formatted_messages.append({"role": role, "content": msg["content"]})
+        
+    formatted_messages.append({"role": "user", "content": prompt})
+    
+    # Convert list of dicts to tuple of tuples so it's hashable for @lru_cache
+    messages_tuple = tuple(tuple(m.items()) for m in formatted_messages)
+    return _cached_ai_safety_analysis(messages_tuple)
+
+
+def combine_analysis(prompt: str, history: list = None) -> dict:
     """
     Combine regex-based detection with AI safety model for comprehensive analysis.
     The regex engine catches known attack patterns instantly,
@@ -237,7 +276,7 @@ def combine_analysis(prompt: str) -> dict:
     regex_result = regex_analysis(prompt)
 
     # Layer 2: AI-powered safety classification
-    ai_result = ai_safety_analysis(prompt)
+    ai_result = ai_safety_analysis(prompt, history)
 
     # Merge results
     threats_found = list(regex_result["threats_found"])
@@ -332,11 +371,13 @@ def read_root():
 
 @app.post("/api/analyze")
 def analyze_prompt(request: PromptRequest):
-    return combine_analysis(request.prompt)
+    history_dicts = [{"role": m.role, "content": m.content} for m in request.history] if request.history else []
+    return combine_analysis(request.prompt, history_dicts)
 
 @app.post("/api/secure-chat")
 def secure_chat(request: PromptRequest):
-    analysis = combine_analysis(request.prompt)
+    history_dicts = [{"role": m.role, "content": m.content} for m in request.history] if request.history else []
+    analysis = combine_analysis(request.prompt, history_dicts)
     risk_score = analysis["risk_score"]
     
     if risk_score > 30:
@@ -352,8 +393,33 @@ def secure_chat(request: PromptRequest):
     
     try:
         model = genai.GenerativeModel("gemini-2.5-flash")
-        response = model.generate_content(request.prompt)
+        
+        # Reconstruct Gemini context history
+        if request.history:
+            gemini_history = []
+            for msg in request.history:
+                role = "model" if msg.role in ["ai", "assistant", "model"] else "user"
+                gemini_history.append({"role": role, "parts": [msg.content]})
+            chat = model.start_chat(history=gemini_history)
+            response = chat.send_message(request.prompt)
+        else:
+            response = model.generate_content(request.prompt)
+            
         ai_reply = response.text
+        
+        # --- Output Validation Layer ---
+        output_analysis = combine_analysis(ai_reply, [])
+        if output_analysis["risk_score"] > 30:
+            return {
+                "status": "blocked",
+                "is_safe": False,
+                "risk_score": output_analysis["risk_score"],
+                "threats_found": ["Output_Validation_Failure"] + output_analysis["threats_found"],
+                "threat_details": output_analysis["threat_details"],
+                "message": "Warning: The AI generated an unsafe response. Content blocked for security.",
+                "reply": None
+            }
+            
     except Exception as e:
         ai_reply = f"[Gemini API Error]: {str(e)}"
 

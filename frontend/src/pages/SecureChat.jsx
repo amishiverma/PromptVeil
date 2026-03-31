@@ -94,10 +94,14 @@ export default function SecureChat() {
     setScanStatus({ text: 'Scanning...', color: '#f59e0b' });
 
     try {
+      const history = messages
+        .filter(m => m.role === 'user' || m.role === 'ai')
+        .map(m => ({ role: m.role, content: m.content }));
+
       const res = await fetch('http://localhost:8000/api/secure-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: text }),
+        body: JSON.stringify({ prompt: text, history }),
       });
       const data = await res.json();
       setIsTyping(false);
