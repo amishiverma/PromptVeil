@@ -1,9 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from openai import OpenAI
 import re
 import json
+import csv
+import io
+import PyPDF2
 from functools import lru_cache
 from typing import List, Optional
 import os
@@ -375,9 +378,47 @@ def analyze_prompt(request: PromptRequest):
     return combine_analysis(request.prompt, history_dicts)
 
 @app.post("/api/secure-chat")
-def secure_chat(request: PromptRequest):
-    history_dicts = [{"role": m.role, "content": m.content} for m in request.history] if request.history else []
-    analysis = combine_analysis(request.prompt, history_dicts)
+async def secure_chat(
+    prompt: str = Form(...),
+    history: str = Form("[]"),
+    file: UploadFile = File(None)
+):
+    try:
+        parsed_history = json.loads(history)
+    except Exception:
+        parsed_history = []
+        
+    final_prompt = prompt
+
+    # Process File Attachment
+    if file:
+        file_content = await file.read()
+        extracted_text = ""
+        try:
+            if file.filename.endswith(".pdf"):
+                reader = PyPDF2.PdfReader(io.BytesIO(file_content))
+                text_chunks = []
+                for i, page in enumerate(reader.pages):
+                    if i > 10: # Limit to 10 pages for safety and speed
+                        text_chunks.append("\n...[Page Limit Reached]...")
+                        break
+                    text_chunks.append(page.extract_text() or "")
+                extracted_text = "\n".join(text_chunks)
+            elif file.filename.endswith(".csv"):
+                decoded_csv = file_content.decode('utf-8')
+                reader = csv.reader(io.StringIO(decoded_csv))
+                extracted_text = "\n".join([", ".join(row) for row in reader])
+            else:
+                extracted_text = file_content.decode('utf-8', errors='ignore')
+
+            if extracted_text.strip():
+                final_prompt += f"\n\n--- Attached File ({file.filename}) ---\n" + extracted_text
+        except Exception as e:
+            print(f"File extraction error: {e}")
+            pass
+
+    history_dicts = [{"role": m.get("role", "user"), "content": m.get("content", "")} for m in parsed_history] if parsed_history else []
+    analysis = combine_analysis(final_prompt, history_dicts)
     risk_score = analysis["risk_score"]
     
     if risk_score > 30:
@@ -387,7 +428,7 @@ def secure_chat(request: PromptRequest):
             "risk_score": risk_score,
             "threats_found": analysis["threats_found"],
             "threat_details": analysis["threat_details"],
-            "message": "Warning: The prompt cannot be executed due to safety issues.",
+            "message": "Warning: The prompt or attached file cannot be executed due to safety issues.",
             "reply": None
         }
     
@@ -395,15 +436,15 @@ def secure_chat(request: PromptRequest):
         model = genai.GenerativeModel("gemini-2.5-flash")
         
         # Reconstruct Gemini context history
-        if request.history:
+        if parsed_history:
             gemini_history = []
-            for msg in request.history:
-                role = "model" if msg.role in ["ai", "assistant", "model"] else "user"
-                gemini_history.append({"role": role, "parts": [msg.content]})
+            for msg in parsed_history:
+                role = "model" if msg.get("role") in ["ai", "assistant", "model"] else "user"
+                gemini_history.append({"role": role, "parts": [msg.get("content", "")]})
             chat = model.start_chat(history=gemini_history)
-            response = chat.send_message(request.prompt)
+            response = chat.send_message(final_prompt)
         else:
-            response = model.generate_content(request.prompt)
+            response = model.generate_content(final_prompt)
             
         ai_reply = response.text
         
