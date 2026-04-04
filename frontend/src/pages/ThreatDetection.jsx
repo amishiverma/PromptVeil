@@ -87,16 +87,25 @@ export default function ThreatDetection() {
                   <h3>Payload Input</h3>
                   {isAnalyzing && <span className="text-blue" style={{fontSize:'0.85rem'}}>NVIDIA Nemotron AI Scanning...</span>}
               </div>
-              <textarea 
-                className="payload-textarea"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-              />
+              <div style={{ 
+                background: 'rgba(255, 255, 255, 0.03)', 
+                border: '1px solid rgba(255, 255, 255, 0.1)', 
+                borderRadius: '12px', 
+                padding: '1rem',
+                marginBottom: '1rem'
+              }}>
+                <textarea 
+                  className="payload-textarea"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  style={{ width: '100%', border: 'none', background: 'transparent', color: '#fff', outline: 'none', resize: 'none' }}
+                />
+              </div>
               <div className="button-group">
                 <button className="btn btn-primary" onClick={handleAnalyze} disabled={isAnalyzing}>
                   {isAnalyzing ? 'Analyzing...' : 'Analyze Vector'}
                 </button>
-                <button className="btn btn-secondary" onClick={() => setPrompt('')}>Clear</button>
+                <button className="btn-faded" onClick={() => setPrompt('')}>Clear</button>
               </div>
             </div>
             
@@ -106,7 +115,7 @@ export default function ThreatDetection() {
               <h3>Threat Overview</h3>
               <div className="gauge-container">
                 <svg viewBox="0 0 200 120" className="gauge-svg">
-                    <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="var(--border-color)" strokeWidth="12" strokeLinecap="round" />
+                    <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="12" strokeLinecap="round" />
                     <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gaugeGradient)" strokeWidth="12" strokeLinecap="round" strokeDasharray={gaugeCircumference} strokeDashoffset={gaugeOffset} style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1)' }}/>
                     <defs>
                       <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -140,53 +149,54 @@ export default function ThreatDetection() {
             </div>
         </div>
 
-        {/* Right Column: Protocols Shield Status */}
-        <div className="panel threats-panel row-span-2">
+        {/* Right Column: Protocols Shield Status */}        <div className="panel threats-panel row-span-2" style={{ display: 'flex', flexDirection: 'column' }}>
             <h3>Active Threats</h3>
             
-            <div className={`threat-card highlight-red ${activeThreats.includes('sql_injection') ? 'flashing' : ''}`}>
-              <div className="tc-header">
-                <div className="icon-box red-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-around', marginTop: '1rem' }}>
+                <div className={`threat-card highlight-red ${activeThreats.includes('sql_injection') ? 'flashing' : ''}`}>
+                  <div className="tc-header">
+                    <div className="icon-box red-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    </div>
+                    <div className="tc-title">
+                        <h4>SQL Injection</h4>
+                        <span className="tc-status">{activeThreats.includes('sql_injection') ? result.threat_details['sql_injection'].status : 'Armored'}</span>
+                    </div>
+                  </div>
+                  <div className="tc-footer">
+                    <span>Confidence: <b>{activeThreats.includes('sql_injection') ? result.threat_details['sql_injection'].severity + '%' : '--'}</b></span>
+                  </div>
                 </div>
-                <div className="tc-title">
-                    <h4>SQL Injection</h4>
-                    <span className="tc-status">{activeThreats.includes('sql_injection') ? result.threat_details['sql_injection'].status : 'Armored'}</span>
-                </div>
-              </div>
-              <div className="tc-footer">
-                <span>Confidence: <b>{activeThreats.includes('sql_injection') ? result.threat_details['sql_injection'].severity + '%' : '--'}</b></span>
-              </div>
-            </div>
 
-            <div className={`threat-card highlight-yellow ${activeThreats.includes('system_override') ? 'flashing' : ''}`}>
-              <div className="tc-header">
-                <div className="icon-box yellow-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <div className={`threat-card highlight-yellow ${activeThreats.includes('system_override') ? 'flashing' : ''}`}>
+                  <div className="tc-header">
+                    <div className="icon-box yellow-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    </div>
+                    <div className="tc-title">
+                        <h4>System Override</h4>
+                        <span className="tc-status">{activeThreats.includes('system_override') ? result.threat_details['system_override'].status : 'Armored'}</span>
+                    </div>
+                  </div>
+                  <div className="tc-footer">
+                    <span>Confidence: <b>{activeThreats.includes('system_override') ? result.threat_details['system_override'].severity + '%' : '--'}</b></span>
+                  </div>
                 </div>
-                <div className="tc-title">
-                    <h4>System Override</h4>
-                    <span className="tc-status">{activeThreats.includes('system_override') ? result.threat_details['system_override'].status : 'Armored'}</span>
-                </div>
-              </div>
-              <div className="tc-footer">
-                <span>Confidence: <b>{activeThreats.includes('system_override') ? result.threat_details['system_override'].severity + '%' : '--'}</b></span>
-              </div>
-            </div>
 
-            <div className={`threat-card highlight-green ${activeThreats.includes('jailbreak') || activeThreats.includes('ai_safety') ? 'flashing' : ''}`}>
-              <div className="tc-header">
-                <div className="icon-box green-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                <div className={`threat-card highlight-green ${activeThreats.includes('jailbreak') || activeThreats.includes('ai_safety') ? 'flashing' : ''}`}>
+                  <div className="tc-header">
+                    <div className="icon-box green-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    </div>
+                    <div className="tc-title">
+                        <h4>Jailbreak & Semantic</h4>
+                        <span className="tc-status">{activeThreats.includes('jailbreak') || activeThreats.includes('ai_safety') ? 'Breach Detected' : 'Monitoring'}</span>
+                    </div>
+                  </div>
+                  <div className="tc-footer">
+                    <span>Confidence: <b>{activeThreats.includes('jailbreak') ? result.threat_details['jailbreak'].severity + '%' : activeThreats.includes('ai_safety') ? result.threat_details['ai_safety'].severity + '%' : '--'}</b></span>
+                  </div>
                 </div>
-                <div className="tc-title">
-                    <h4>Jailbreak & Semantic</h4>
-                    <span className="tc-status">{activeThreats.includes('jailbreak') || activeThreats.includes('ai_safety') ? 'Breach Detected' : 'Monitoring'}</span>
-                </div>
-              </div>
-              <div className="tc-footer">
-                <span>Confidence: <b>{activeThreats.includes('jailbreak') ? result.threat_details['jailbreak'].severity + '%' : activeThreats.includes('ai_safety') ? result.threat_details['ai_safety'].severity + '%' : '--'}</b></span>
-              </div>
             </div>
         </div>
 
@@ -203,17 +213,17 @@ export default function ThreatDetection() {
                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--blue)" stopOpacity={0.6}/>
-                      <stop offset="95%" stopColor="var(--blue)" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.7}/>
+                      <stop offset="95%" stopColor="#ec4899" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="name" stroke="var(--text-dim)" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="var(--text-dim)" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} />
+                  <XAxis dataKey="name" stroke="rgba(255,255,255,0.4)" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="rgba(255,255,255,0.4)" fontSize={12} tickLine={false} axisLine={false} domain={[0, 100]} />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: 'var(--bg-panel)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-main)' }}
-                    itemStyle={{ color: 'var(--blue)' }}
+                    contentStyle={{ backgroundColor: 'rgba(20, 20, 35, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff' }}
+                    itemStyle={{ color: '#38bdf8' }}
                   />
-                  <Area type="monotone" dataKey="score" stroke="var(--blue)" fillOpacity={1} fill="url(#colorScore)" strokeWidth={2} activeDot={{ r: 6, stroke: 'var(--bg-panel)', strokeWidth: 2 }} />
+                  <Area type="monotone" dataKey="score" stroke="#38bdf8" fillOpacity={1} fill="url(#colorScore)" strokeWidth={3} activeDot={{ r: 6, stroke: '#ec4899', strokeWidth: 2 }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>

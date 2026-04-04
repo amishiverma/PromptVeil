@@ -6,7 +6,7 @@ import re
 import json
 import csv
 import io
-import PyPDF2
+import pypdf
 from functools import lru_cache
 from typing import List, Optional
 import os
@@ -31,11 +31,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# NVIDIA NIM Safety Guard Client
-nvidia_client = OpenAI(
-    base_url="https://integrate.api.nvidia.com/v1",
-    api_key=os.getenv("NVIDIA_API_KEY")
-)
+# NVIDIA NIM Safety Guard Client (Optional)
+nvidia_key = os.getenv("NVIDIA_API_KEY")
+nvidia_client = None
+
+if nvidia_key:
+    try:
+        nvidia_client = OpenAI(
+            base_url="https://integrate.api.nvidia.com/v1",
+            api_key=nvidia_key
+        )
+    except Exception as e:
+        print(f"Warning: Failed to initialize NVIDIA client: {e}")
+
 
 SAFETY_MODEL = "nvidia/llama-3.1-nemotron-safety-guard-8b-v3"
 
@@ -187,6 +195,15 @@ def regex_analysis(prompt: str) -> dict:
 @lru_cache(maxsize=200)
 def _cached_ai_safety_analysis(messages_tuple: tuple) -> dict:
     """Internal cached API call to NVIDIA Nemotron."""
+    if not nvidia_client:
+        return {
+            "success": False,
+            "is_unsafe": False,
+            "ai_response": "NVIDIA API Key not configured. Safety Guard offline.",
+            "categories": [],
+            "model": SAFETY_MODEL,
+        }
+
     messages = [dict(m) for m in messages_tuple]
     try:
         completion = nvidia_client.chat.completions.create(
@@ -396,7 +413,7 @@ async def secure_chat(
         extracted_text = ""
         try:
             if file.filename.endswith(".pdf"):
-                reader = PyPDF2.PdfReader(io.BytesIO(file_content))
+                reader = pypdf.PdfReader(io.BytesIO(file_content))
                 text_chunks = []
                 for i, page in enumerate(reader.pages):
                     if i > 10: # Limit to 10 pages for safety and speed

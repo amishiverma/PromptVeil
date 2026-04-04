@@ -1,27 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg-main: #141721;
-  --bg-sidebar: #1b1e2b;
-  --bg-panel: #202432;
-  --bg-input: #151822;
-  --bg-lighter: #252a3a;
-  --border-color: #2a2e41;
-  --border-light: #353a50;
-  
-  --text-main: #e2e8f0;
-  --text-dim: #8b96a5;
-  
-  --blue: #38bdf8;
-  --blue-hover: #0ea5e9;
-  --blue-bg: rgba(56, 189, 248, 0.1);
-  
-  --red: #ef4444;
-  --red-bg: rgba(239, 68, 68, 0.1);
-  --yellow: #f59e0b;
-  --yellow-bg: rgba(245, 158, 11, 0.1);
-  --green: #10b981;
-  --green-bg: rgba(16, 185, 129, 0.1);
+  --bg-main: #0a0b10;
+  --bg-panel: rgba(25, 20, 45, 0.45);
+  --accent-orange: linear-gradient(135deg, #ff5f38 0%, #ff3b3b 100%);
+  --text-main: #ffffff;
+  --text-dim: rgba(255, 255, 255, 0.6);
+  --border-light: rgba(255, 255, 255, 0.15);
 }
 
 /* ── Light Mode ── */
@@ -55,19 +40,37 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Inter', sans-serif; background-color: var(--bg-main); color: var(--text-main); height: 100vh; overflow: hidden; }
+body { 
+  font-family: 'Inter', sans-serif; 
+  /* Deep Orb Background + Stardust Texture */
+  background: 
+    radial-gradient(circle at 15% 15%, rgba(139, 92, 246, 0.4) 0%, transparent 40%),
+    radial-gradient(circle at 85% 85%, rgba(249, 115, 22, 0.3) 0%, transparent 45%),
+    radial-gradient(circle at 90% 15%, rgba(167, 139, 250, 0.15) 0%, transparent 30%),
+    url('https://www.transparenttextures.com/patterns/stardust.png'),
+    #05060b;
+  color: var(--text-main); 
+  min-height: 100vh; 
+  overflow-y: auto; 
+  background-attachment: fixed;
+}
 
 
 
 /* LAYOUT */
-.app-container { display: flex; flex-direction: column; height: 100vh; background: radial-gradient(circle at 50% -20%, #1a1e2d 0%, #0d0f17 50%, #050608 100%); }
+.app-container { 
+  display: flex; 
+  flex-direction: column; 
+  min-height: 100vh; 
+  background: transparent;
+}
 
 .top-nav {
   height: 70px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 3rem;
+  padding: 0 5%;
   z-index: 50;
   flex-shrink: 0;
 }
@@ -83,8 +86,8 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg-main); color
 .main-content { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
 
 /* CONTENT & GRID */
-.scroll-content { flex: 1; padding: 2rem; overflow-y: auto; }
-.page-container { display: flex; flex-direction: column; gap: 1.5rem; height: 100%;}
+.scroll-content { flex: 1; padding: 2rem 5%; overflow-y: auto; }
+.page-container { display: flex; flex-direction: column; gap: 1.5rem; min-height: 100%;}
 .page-title { font-size: 1.5rem; font-weight: 600; margin-bottom: 1.5rem; }
 .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
 
@@ -94,60 +97,94 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg-main); color
 
 .panel {
   position: relative;
-  background: var(--bg-panel);
-  border-radius: 12px;
-  padding: 1.5rem;
-  border: none;
+  background: var(--bg-panel), url('https://www.transparenttextures.com/patterns/stardust.png') !important;
+  backdrop-filter: blur(40px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
+  border-radius: 24px;
+  padding: 1.8rem;
+  border: 1px solid var(--border-light) !important;
   overflow: hidden;
-  transition: transform 0.2s, box-shadow 0.3s;
+  transition: all 0.3s ease;
+  box-shadow: 0 12px 40px -10px rgba(0, 0, 0, 0.8);
 }
 
-/* Glowing gradient border — same motion as SecureChat input */
+.btn-faded {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-faded:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.btn-primary { 
+  background: var(--accent-orange) !important; 
+  color: #fff !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 15px rgba(255, 95, 56, 0.3) !important;
+}
+
+/* Mirror Peak Highlight — Sharp white gleam on top edge */
 .panel::before {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 12px;
-  padding: 2px;
-  /* Use same gradient + background-size trick as .sc-input-glow-wrap */
-  background: linear-gradient(135deg,
-    var(--panel-glow-a, #f97316) 0%,
-    var(--panel-glow-b, #9333ea) 40%,
-    var(--panel-glow-c, #3b82f6) 70%,
-    var(--panel-glow-a, #f97316) 100%
+  border-radius: 24px;
+  padding: 1px;
+  background: linear-gradient(180deg, 
+    rgba(255, 255, 255, 0.4) 0%, 
+    rgba(255, 255, 255, 0.05) 30%, 
+    rgba(255, 255, 255, 0.02) 100%
   );
-  background-size: 300% 300%;
-  animation: glow-shift 4s ease infinite;  /* reuse same keyframe as SecureChat */
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   pointer-events: none;
-  z-index: 0;
+  z-index: 1;
 }
 
-/* Outer bloom glow — same intensity as SecureChat */
+/* Secondary Gleam — The brilliant white 'spot' at the top center */
 .panel::after {
   content: '';
   position: absolute;
-  inset: -2px;
-  border-radius: 14px;
-  background: transparent;
-  box-shadow:
-    0 0 24px rgba(var(--panel-shadow-rgb, 147, 51, 234), 0.28),
-    0 0 50px rgba(var(--panel-shadow-rgb, 147, 51, 234), 0.10);
+  top: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40%;
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(255, 255, 255, 0.8) 50%, 
+    transparent 100%
+  );
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+  z-index: 2;
   pointer-events: none;
-  z-index: 0;
-  transition: box-shadow 0.4s;
 }
 
 .panel:hover::after {
-  box-shadow:
-    0 0 40px rgba(var(--panel-shadow-rgb, 147, 51, 234), 0.5),
-    0 0 80px rgba(var(--panel-shadow-rgb, 147, 51, 234), 0.18);
+  width: 60%;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
 }
 .panel:hover::before {
-  animation-duration: 2s; /* speeds up on hover like SecureChat focused state */
+  background: linear-gradient(180deg, 
+    rgba(255, 255, 255, 0.6) 0%, 
+    rgba(255, 255, 255, 0.1) 40%, 
+    rgba(255, 255, 255, 0.05) 100%
+  );
 }
 
 .panel:hover { transform: translateY(-1px); }
@@ -617,7 +654,7 @@ body { font-family: 'Inter', sans-serif; background-color: var(--bg-main); color
 }
 
 /* Override scroll padding when on chat page */
-.scroll-content:has(.sc-page) { padding: 0; overflow: hidden; }
+.scroll-content:has(.sc-page) { padding: 0; overflow: auto; }
 
 
 .sc-header-left { display: flex; align-items: center; gap: 1rem; }

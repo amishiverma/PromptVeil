@@ -16,8 +16,7 @@ export default function MainLayout({ children }) {
         <nav className="nav-menu-top">
           <Link to="/" className={`nav-item-top ${isActive('/')}`}>dashboard</Link>
           <Link to="/detect" className={`nav-item-top ${isActive('/detect')}`}>threat detection</Link>
-          <Link to="/analytics" className={`nav-item-top ${isActive('/analytics')}`}>payload</Link>
-          <Link to="/analytics" className={`nav-item-top ${isActive('/analytics-full')}`}>analytics</Link>
+          <Link to="/analytics" className={`nav-item-top ${isActive('/analytics')}`}>payload analytics</Link>
           <Link to="/policies" className={`nav-item-top ${isActive('/policies')}`}>defense politics</Link>
           <Link to="/redteam" className={`nav-item-top ${isActive('/redteam')}`}>red teaming</Link>
         </nav>
@@ -32,7 +31,7 @@ export default function MainLayout({ children }) {
 
       {/* MAIN CONTENT AREA */}
       <main className="main-content">
-        <div className="scroll-content" style={{ height: '100%', overflowY: 'auto', padding: 0 }}>
+        <div className="scroll-content">
           {children}
         </div>
       </main>

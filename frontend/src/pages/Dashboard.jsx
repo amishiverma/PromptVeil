@@ -61,8 +61,10 @@ export default function Dashboard() {
   const [messages, setMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
   const hasStarted = messages.length > 0;
 
   useEffect(() => {
@@ -79,25 +81,44 @@ export default function Dashboard() {
 
   const now = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+  const handleFileClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
   const handleSend = async () => {
     const text = input.trim();
-    if (!text || isTyping) return;
+    if ((!text && !selectedFile) || isTyping) return;
 
-    setMessages(prev => [...prev, { role: 'user', content: text, time: now() }]);
+    const userMsg = {
+      role: 'user',
+      content: text + (selectedFile ? ` [Attached: ${selectedFile.name}]` : ''),
+      time: now()
+    };
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
+    const fileToSend = selectedFile;
+    setSelectedFile(null);
     setIsTyping(true);
 
     try {
-      // Send the actual conversation history
       const history = messages
         .filter(m => m.role === 'user' || m.role === 'ai')
         .map(m => ({ role: m.role, content: m.content }));
 
-
-      // Use FormData for FastAPI endpoint expecting form fields
       const formData = new FormData();
       formData.append('prompt', text || '');
       formData.append('history', JSON.stringify(history || []));
+      if (fileToSend) {
+        formData.append('file', fileToSend);
+      }
+
       const res = await fetch('http://localhost:8000/api/secure-chat', {
         method: 'POST',
         body: formData,
@@ -137,18 +158,18 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="sc-page" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      
+    <div className="sc-page" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 70px)', position: 'relative' }}>
+
       {/* ── Landing State / Chat Messages ── */}
-      <div className="dynamic-content-area" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        
+      <div className="dynamic-content-area" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+
         {!hasStarted ? (
           // Landing View
           <div className="landing-view" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: '300px', height: '300px', marginBottom: '1rem' }}>
-               <Globe />
+            <div style={{ width: '120px', height: '120px', marginBottom: '1.5rem' }}>
+              <Globe />
             </div>
-            <h1 style={{ fontSize: '3rem', fontWeight: 600, color: '#fff', marginBottom: '2rem' }}>How can I help u?</h1>
+            <h1 style={{ fontSize: '2rem', fontWeight: 600, color: '#fff', marginBottom: '0' }}>How can I help you today?</h1>
           </div>
         ) : (
           // Chat View - Let the sc-messages class manage its own overflow as defined in index.css
@@ -159,7 +180,7 @@ export default function Dashboard() {
               content: "Hello! I'm your PromptVeil-secured AI assistant. Every message you send is scanned by the dual-layer defense engine before reaching the AI. Ask me anything!",
               time: now(),
             }} />
-            
+
             {messages.map((msg, i) => <Message key={i} msg={msg} />)}
             {isTyping && <TypingDots />}
             <div ref={bottomRef} />
@@ -169,7 +190,29 @@ export default function Dashboard() {
 
       {/* ── Premium Input Area ── */}
       <div className="input-container-pinned" style={{ padding: '0 15% 2rem 15%', boxSizing: 'border-box', width: '100%', transition: 'all 0.3s' }}>
-        <div className={`sc-input-glow-wrap ${inputFocused ? 'focused' : ''}`} style={{ borderRadius: '24px' }}>
+        <div className={`sc-input-glow-wrap ${inputFocused ? 'focused' : ''}`} style={{ borderRadius: '24px', position: 'relative' }}>
+          {selectedFile && (
+            <div style={{
+              position: 'absolute',
+              top: '-35px',
+              left: '1rem',
+              fontSize: '0.8rem',
+              color: '#38bdf8',
+              background: 'rgba(56, 189, 248, 0.1)',
+              padding: '2px 8px',
+              borderRadius: '6px',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              📎 {selectedFile.name}
+              <span
+                onClick={() => setSelectedFile(null)}
+                style={{ cursor: 'pointer', fontWeight: 'bold', color: '#ff5f38' }}
+              >×</span>
+            </div>
+          )}
           <div className="sc-input-inner" style={{ borderRadius: '22px', background: '#12151f', padding: '1rem 1.25rem 0.8rem' }}>
             <textarea
               ref={textareaRef}
@@ -184,16 +227,24 @@ export default function Dashboard() {
               style={{ fontSize: '1rem' }}
             />
 
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              style={{ display: 'none' }}
+              accept=".pdf,.csv,text/plain"
+            />
+
             <div className="sc-toolbar" style={{ marginTop: '0.8rem' }}>
               <div className="sc-toolbar-left">
-                <button className="sc-tool-btn" title="Attach">
+                <button className="sc-tool-btn" title="Attach" onClick={handleFileClick}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
                     <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
                 </button>
                 <button className="sc-tools-chip">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
                   </svg>
                   Tools
                 </button>
@@ -202,10 +253,10 @@ export default function Dashboard() {
               <div className="sc-toolbar-right">
                 <button className="sc-mic-btn" title="Voice input">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                    <line x1="12" y1="19" x2="12" y2="23"/>
-                    <line x1="8" y1="23" x2="16" y2="23"/>
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" y1="19" x2="12" y2="23" />
+                    <line x1="8" y1="23" x2="16" y2="23" />
                   </svg>
                 </button>
                 <button
@@ -215,8 +266,8 @@ export default function Dashboard() {
                   title="Send"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
-                    <line x1="22" y1="2" x2="11" y2="13"/>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
                   </svg>
                 </button>
               </div>
