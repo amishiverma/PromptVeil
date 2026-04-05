@@ -158,7 +158,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="sc-page" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 70px)', position: 'relative' }}>
+    <div className="sc-page" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 150px)', position: 'relative' }}>
 
       {/* ── Landing State / Chat Messages ── */}
       <div className="dynamic-content-area" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>

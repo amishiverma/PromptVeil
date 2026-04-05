@@ -168,7 +168,7 @@ export default function SecureChat() {
   };
 
   return (
-    <div className="sc-page">
+    <div className="page-container">
 
       {/* ── Top header bar ── */}
       <div className="sc-header">

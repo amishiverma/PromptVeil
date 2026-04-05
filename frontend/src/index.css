@@ -86,7 +86,15 @@ body {
 .main-content { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
 
 /* CONTENT & GRID */
-.scroll-content { flex: 1; padding: 2rem 5%; overflow-y: auto; }
+.scroll-content { 
+  flex: 1; 
+  padding: 2rem 5%; 
+  overflow-y: auto; 
+}
+.scroll-content::-webkit-scrollbar { width: 6px; }
+.scroll-content::-webkit-scrollbar-track { background: transparent; }
+.scroll-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); }
+.scroll-content::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
 .page-container { display: flex; flex-direction: column; gap: 1.5rem; min-height: 100%;}
 .page-title { font-size: 1.5rem; font-weight: 600; margin-bottom: 1.5rem; }
 .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
@@ -371,12 +379,7 @@ body {
    SECURE CHAT PAGE  — Premium Glow Design
 ═══════════════════════════════════════════ */
 .sc-page {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 70px);
-  background: transparent;
   position: relative;
-  overflow: hidden;
 }
 
 /* ── Header ── */
@@ -421,18 +424,30 @@ body {
 
 /* ── Messages ── */
 .sc-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 2rem 3rem;
+  padding: 2rem 0;
   display: flex;
   flex-direction: column;
   gap: 1.4rem;
-  scroll-behavior: smooth;
+  overflow-y: auto;
+  flex: 1;
+  scrollbar-gutter: stable; /* Prevents shifting when scrollbar appears */
 }
+
+/* ── Chat Scrollbar ── */
 .sc-messages::-webkit-scrollbar { width: 6px; }
-.sc-messages::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
-.sc-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-.sc-messages::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+.sc-messages::-webkit-scrollbar-track { background: transparent; }
+.sc-messages::-webkit-scrollbar-thumb { 
+  background: linear-gradient(180deg, rgba(56,189,248,0) 0%, rgba(56,189,248,0.8) 50%, rgba(56,189,248,0) 100%); 
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(56,189,248,0.3);
+}
+.sc-messages::-webkit-scrollbar-thumb:hover { background: rgba(56,189,248,1); }
+
+/* Firefox support */
+.sc-messages {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(56,189,248,0.6) transparent;
+}
 
 .sc-msg { display: flex; align-items: flex-end; gap: 0.7rem; max-width: 72%; }
 .sc-msg--user { align-self: flex-end; flex-direction: row-reverse; }
@@ -657,7 +672,6 @@ body {
 }
 
 /* Override scroll padding when on chat page */
-.scroll-content:has(.sc-page) { padding: 0; overflow: hidden !important; }
 
 
 .sc-header-left { display: flex; align-items: center; gap: 1rem; }
@@ -782,9 +796,13 @@ body {
 .sc-inputbar {
   display: flex; align-items: flex-end; gap: 0.75rem;
   padding: 1rem 2rem 1.25rem;
-  background: var(--bg-sidebar);
+  background: rgba(13, 14, 20, 0.7); /* Translucent so messages scroll behind it */
+  backdrop-filter: blur(12px);
   border-top: 1px solid var(--border-color);
   flex-shrink: 0;
+  position: sticky;
+  bottom: 2rem; /* Floating above the footer note */
+  z-index: 10;
 }
 .sc-shield-badge {
   width: 40px; height: 40px; flex-shrink: 0;
@@ -835,10 +853,13 @@ body {
   font-size: 0.7rem;
   color: var(--text-dim);
   padding: 0.5rem 2rem 0.75rem;
-  background: var(--bg-sidebar);
+  background: rgba(13, 14, 20, 0.7);
+  backdrop-filter: blur(12px);
   border-top: 1px solid var(--border-color);
   flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
 }
 
-/* Override scroll-content for chat page (no inner padding needed) */
-.scroll-content:has(.sc-page) { padding: 0; overflow: hidden; }
+
