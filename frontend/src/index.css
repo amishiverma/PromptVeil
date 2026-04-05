@@ -657,7 +657,7 @@ body {
 }
 
 /* Override scroll padding when on chat page */
-.scroll-content:has(.sc-page) { padding: 0; overflow: auto; }
+.scroll-content:has(.sc-page) { padding: 0; overflow: hidden !important; }
 
 
 .sc-header-left { display: flex; align-items: center; gap: 1rem; }
