@@ -373,7 +373,7 @@ body {
 .sc-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: calc(100vh - 70px);
   background: transparent;
   position: relative;
   overflow: hidden;
