@@ -13,4 +13,17 @@ frontend/dist/
 
 # Env
 .env
+.env.local
+.env.*.local
 backend/.env
+frontend/.env
+frontend/.env.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db

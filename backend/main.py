@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from openai import OpenAI
@@ -12,6 +12,12 @@ from typing import List, Optional
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai
+from datetime import datetime, timedelta
+
+# Import auth functions and models
+from auth import create_access_token, verify_google_token, get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES
+from models import User, get_db, SessionLocal
+from sqlalchemy.orm import Session
 
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 load_dotenv(env_path)
@@ -56,6 +62,23 @@ class ChatMessage(BaseModel):
 class PromptRequest(BaseModel):
     prompt: str
     history: Optional[List[ChatMessage]] = []
+
+
+# ===== Authentication Models =====
+class GoogleTokenRequest(BaseModel):
+    token: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: dict
+
+
+class UserResponse(BaseModel):
+    email: str
+    name: str
+    picture: str
 
 
 # Regex-based threat detection patterns (fast, offline fallback)
@@ -490,3 +513,113 @@ async def secure_chat(
         "message": "Safe to execute",
         "reply": ai_reply
     }
+
+
+# ===== Google Authentication Endpoints =====
+
+@app.post("/auth/google", response_model=TokenResponse)
+def google_login(request: GoogleTokenRequest, db: Session = Depends(get_db)):
+    """
+    Exchange a Google OAuth token for a PromptVeil JWT token.
+    Frontend sends the Google idToken, backend verifies it and creates a user session.
+    """
+    try:
+        # Verify Google token
+        google_user_info = verify_google_token(request.token)
+        
+        google_id = google_user_info.get("sub")
+        email = google_user_info.get("email")
+        name = google_user_info.get("name", "")
+        picture = google_user_info.get("picture", "")
+        
+        # Find or create user in database
+        user = db.query(User).filter(User.google_id == google_id).first()
+        
+        if not user:
+            # Create new user
+            user = User(
+                google_id=google_id,
+                email=email,
+                name=name,
+                picture=picture,
+                is_active=True
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        else:
+            # Update user info if changed
+            if user.email != email or user.name != name or user.picture != picture:
+                user.email = email
+                user.name = name
+                user.picture = picture
+                db.commit()
+        
+        # Create JWT token for PromptVeil app
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": email, "user_id": user.id},
+            expires_delta=access_token_expires
+        )
+        
+        return TokenResponse(
+            access_token=access_token,
+            token_type="bearer",
+            user={
+                "id": user.id,
+                "email": user.email,
+                "name": user.name,
+                "picture": user.picture
+            }
+        )
+    
+    except Exception as e:
+        print(f"Google login error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Failed to authenticate with Google",
+        )
+
+
+@app.get("/auth/user", response_model=UserResponse)
+def get_current_user_endpoint(current_user: str = Depends(get_current_user)):
+    """
+    Get the currently authenticated user's information.
+    Requires a valid JWT token from /auth/google endpoint.
+    """
+    # Decode the token to get email
+    from jose import jwt
+    from auth import SECRET_KEY, ALGORITHM
+    try:
+        db = SessionLocal()
+        payload = jwt.decode(current_user, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        user = db.query(User).filter(User.email == email).first()
+        db.close()
+        
+        if user:
+            return UserResponse(
+                email=user.email,
+                name=user.name,
+                picture=user.picture
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+    except Exception as e:
+        print(f"Get user error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not retrieve user",
+        )
+
+
+@app.post("/auth/logout")
+def logout():
+    """
+    Logout endpoint (frontend can clear token from localStorage).
+    This endpoint doesn't need to do anything special since JWT is stateless.
+    """
+    return {"status": "success", "message": "Logged out successfully"}
